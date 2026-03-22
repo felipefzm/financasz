@@ -15,7 +15,7 @@ public interface CategoryRepositoryQuery {
 
     Optional<Category> findByNameAndUserId(CategoryFilter filter);
 
-    List<Category> findByTypeAndUserId(CategoryFilter filter);
+    Optional<Category> findByTypeAndUserId(CategoryFilter filter);
 
     List<Category> getAll(CategoryFilter filter);
 

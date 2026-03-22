@@ -1,5 +1,6 @@
 package br.com.financasz.services;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -52,11 +53,19 @@ public class CategoryService {
             throw new CategoryAlreadyExistsException("Categoria já existe com esse nome para esse usuário");
         }
 
+        try {
+            CategoryTypeEnum.valueOf(categoriaDTO.getType().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new CategoryTypeDoesNotExistException();
+        }
+
         if (categoriaDTO.getActive() == null) {
             categoriaDTO.setActive(true);
         }
 
+        
         Category category = modelMapper.map(categoriaDTO, Category.class);
+        category.setCreatedAt(LocalDateTime.now());
         category.setUser(user);
         categoryRepository.save(category);
         return modelMapper.map(category, CategoryDTO.class);
@@ -84,8 +93,15 @@ public class CategoryService {
     }
 
     public CategoryDTO getCategoryById(Long id) {
+        var usuarioAuthID = getAuthenticatedUser().getId();
+
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new CategoryNotFoundException());
+
+        if (!category.getUser().getId().equals(usuarioAuthID)) {
+            throw new AcessDeniedException("Você não tem permissão para acessar esta categoria.");
+        }
+
         return modelMapper.map(category, CategoryDTO.class);
     }
 
@@ -137,6 +153,16 @@ public class CategoryService {
 
     @Transactional
     public void deleteCategory(Long categoryId) {
+
+        var usuarioAuthID = getAuthenticatedUser().getId();
+
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(CategoryNotFoundException::new);
+
+        if (!category.getUser().getId().equals(usuarioAuthID)) {
+            throw new AcessDeniedException("Você não tem permissão para deletar esta categoria.");
+        }
+
         categoryRepository.deleteById(categoryId);
     }
 }

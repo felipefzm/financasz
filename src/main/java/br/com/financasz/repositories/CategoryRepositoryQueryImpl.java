@@ -46,7 +46,7 @@ public class CategoryRepositoryQueryImpl implements CategoryRepositoryQuery {
     }
 
     @Override
-    public List<Category> findByTypeAndUserId(CategoryFilter filter) {
+    public Optional<Category> findByTypeAndUserId(CategoryFilter filter) {
 
         BooleanBuilder builder = new BooleanBuilder();
 
@@ -62,9 +62,11 @@ public class CategoryRepositoryQueryImpl implements CategoryRepositoryQuery {
                 throw new CategoryTypeDoesNotExistException();
             }
         }
-        return queryFactory.selectFrom(qCategory)
+        Category result = queryFactory.selectFrom(qCategory)
                 .where(builder)
-                .fetch();
+                .fetchOne();
+
+        return Optional.ofNullable(result);
     }
 
     @Override

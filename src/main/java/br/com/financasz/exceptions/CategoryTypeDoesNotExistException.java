@@ -7,6 +7,6 @@ public class CategoryTypeDoesNotExistException extends RuntimeException {
     }
 
     public CategoryTypeDoesNotExistException() {
-        super("Tipo de categoria informada inválida. Os tipos válidos são: REVENUE ou EXPENSE.");
+        super("Tipo de categoria informada inválida. Os tipos válidos são: INCOME ou EXPENSE.");
     }
 }

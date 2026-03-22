@@ -11,5 +11,9 @@ public final class RestControllerPath {
     public static final String REGISTER = "/register";
     public static final String LOGIN = "/login";
     public static final String ID = "/{id}";
+    public static final String PAGED = "/paged";
+
+    public static final String CATEGORIES = API_ROOT + "/categories";
+    public static final String TRANSACTIONS = API_ROOT + "/transactions";
     
 }

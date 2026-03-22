@@ -13,12 +13,14 @@ import jakarta.persistence.ManyToOne;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity(name = "categories")
 @Getter
 @Setter
 @AllArgsConstructor
+@NoArgsConstructor
 public class Category {
     
     @Id

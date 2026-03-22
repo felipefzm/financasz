@@ -3,6 +3,7 @@ package br.com.financasz.controllers;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -61,15 +62,18 @@ public class UserController {
     @Operation(summary = "Listar todos os usuários/List all users", description = "Retorna uma lista com todos os usuários do sistema/Returns a list of all users in the system")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Lista de usuários retornada com sucesso/Users list successfully returned"),
-        @ApiResponse(responseCode = "404", description = "Nenhum usuário encontrado/No users found")
     })
     @GetMapping
     public ResponseEntity<List<UserDTO>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
-    @GetMapping("/paged")
-    public ResponseEntity<?> getAllUsersPaged(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+       @Operation(summary = "Listar todos os usuários paginados / List all users paged", description = "Retorna uma lista com todos os usuários do sistema com paginação / It returns a list of all users in the system with pagination")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Lista de usuários retornada com sucesso / Users list successfully returned"),
+    })
+    @GetMapping(RestControllerPath.PAGED)
+    public ResponseEntity<Page<UserDTO>> getAllUsersPaged(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(userService.getAllUsersPaged(page, size));
     }
 
