@@ -6,16 +6,18 @@ import java.util.stream.Collectors;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import br.com.financasz.dtos.CategoryDTO;
 import br.com.financasz.enums.CategoryTypeEnum;
+import br.com.financasz.exceptions.AcessDeniedException;
+import br.com.financasz.exceptions.CategoryAlreadyExistsException;
 import br.com.financasz.exceptions.CategoryNotFoundException;
+import br.com.financasz.exceptions.CategoryTypeDoesNotExistException;
+import br.com.financasz.filters.CategoryFilter;
 import br.com.financasz.models.Category;
 import br.com.financasz.models.User;
 import br.com.financasz.repositories.CategoryRepository;
@@ -38,20 +40,20 @@ public class CategoryService {
     public CategoryDTO createCategory(CategoryDTO categoriaDTO) {
         User user = getAuthenticatedUser();
 
-        if(categoriaDTO.getName() == null || categoriaDTO.getName().isEmpty()) {
+        if (categoriaDTO.getName() == null || categoriaDTO.getName().isEmpty()) {
             throw new RuntimeException("Nome da categoria é obrigatório");
         }
 
-        if(categoryRepository.findByNameAndUserId(categoriaDTO.getName(), user.getId()).isPresent()) {
-            throw new RuntimeException("Você já possui uma categoria com esse nome");
+        CategoryFilter filter = new CategoryFilter();
+        filter.setName(categoriaDTO.getName());
+        filter.setUserId(user.getId()); // filter pra validações
+
+        if (categoryRepository.findByNameAndUserId(filter).isPresent()) {
+            throw new CategoryAlreadyExistsException("Categoria já existe com esse nome para esse usuário");
         }
 
         if (categoriaDTO.getActive() == null) {
             categoriaDTO.setActive(true);
-        }
-
-        if(categoriaDTO.getType() == null || (!categoriaDTO.getType().equalsIgnoreCase("REVENUE") && !categoriaDTO.getType().equalsIgnoreCase("EXPENSE"))) {
-            throw new RuntimeException("Tipo da categoria inválido");
         }
 
         Category category = modelMapper.map(categoriaDTO, Category.class);
@@ -60,27 +62,25 @@ public class CategoryService {
         return modelMapper.map(category, CategoryDTO.class);
     }
 
-    public List<CategoryDTO> getAllCategories() {
-        List<Category> categories = categoryRepository.findAll();
+    public List<CategoryDTO> getAllCategories(CategoryFilter filter) {
+
+        filter.setUserId(getAuthenticatedUser().getId());
+
+        List<Category> categories = categoryRepository.getAll(filter);
+
         List<CategoryDTO> categoriesResponse = categories.stream()
-        .map(category -> modelMapper.map(category, CategoryDTO.class))
-        .collect(Collectors.toList());
+                .map(category -> modelMapper.map(category, CategoryDTO.class))
+                .collect(Collectors.toList());
         return categoriesResponse;
     }
 
-    public List<CategoryDTO> getAllCategoriesPaged(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
-        Page<Category> categoryPage = categoryRepository.findAll(pageable);
-        return categoryPage.getContent().stream()
-                .map(category -> modelMapper.map(category, CategoryDTO.class))
-                .collect(Collectors.toList());
-    }
+    public Page<CategoryDTO> getAllCategoriesPaged(CategoryFilter filter, Pageable pageable) {
 
-    public List<CategoryDTO> getCategoriesByType(String type) {
-        List<Category> categories = categoryRepository.findByTypeAndUserId(CategoryTypeEnum.valueOf(type.toUpperCase()), getAuthenticatedUser().getId());
-        return categories.stream()
-                .map(category -> modelMapper.map(category, CategoryDTO.class))
-                .collect(Collectors.toList());
+        filter.setUserId(getAuthenticatedUser().getId());
+
+        Page<Category> categoriesPage = categoryRepository.getAllPaged(filter, pageable);
+
+        return categoriesPage.map(category -> modelMapper.map(category, CategoryDTO.class));
     }
 
     public CategoryDTO getCategoryById(Long id) {
@@ -90,9 +90,47 @@ public class CategoryService {
     }
 
     public CategoryDTO updateCategory(Long id, CategoryDTO categoryDTO) {
+        var usuarioAuthID = getAuthenticatedUser().getId();
+
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new CategoryNotFoundException());
-        modelMapper.map(categoryDTO, category);
+
+        if (!category.getUser().getId().equals(usuarioAuthID)) {
+            throw new AcessDeniedException("Você não tem permissão para atualizar esta categoria.");
+        }
+
+        if (categoryDTO.getName() != null && categoryDTO.getName().isBlank()) {
+            throw new RuntimeException("Nome não pode ser vazio");
+        }
+
+        if (categoryDTO.getActive() != null) {
+            category.setActive(categoryDTO.getActive());
+        }
+
+        if (categoryDTO.getName() != null && !categoryDTO.getName().equals(category.getName())) {
+
+            CategoryFilter filter = new CategoryFilter();
+            filter.setName(categoryDTO.getName());
+            filter.setUserId(usuarioAuthID);
+
+            boolean exists = categoryRepository
+                    .findByNameAndUserId(filter).isPresent();
+
+            if (exists) {
+                throw new CategoryAlreadyExistsException();
+            } else {
+                category.setName(categoryDTO.getName());
+            }
+        }
+
+        if (categoryDTO.getType() != null) {
+            try {
+                category.setType(CategoryTypeEnum.valueOf(categoryDTO.getType().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                throw new CategoryTypeDoesNotExistException();
+            }
+        }
+
         categoryRepository.save(category);
         return modelMapper.map(category, CategoryDTO.class);
     }
@@ -101,5 +139,4 @@ public class CategoryService {
     public void deleteCategory(Long categoryId) {
         categoryRepository.deleteById(categoryId);
     }
-
 }

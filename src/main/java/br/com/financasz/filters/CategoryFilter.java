@@ -14,5 +14,5 @@ public class CategoryFilter {
     private String name;
     private String type;
     private Boolean active;
-    private String userId;
+    private Long userId;
 }
